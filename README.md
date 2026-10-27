@@ -6,7 +6,7 @@
 **目標**：單次充電運作 6 個月以上。
 **現況**：設計與可行性評估完成，**直接做 PCB（M5 進行中），不經洞洞板驗證**（見[里程碑](#%E9%96%8B%E7%99%BC%E9%87%8C%E7%A8%8B%E7%A2%91)）。
 
-> **取得韌體**：預編譯二進位檔與燒錄工具在 [`firmware/release/`](./firmware/release/0.2.2-ha/README.md)，
+> **取得韌體**：到 [Releases](https://github.com/HoDZadkiel/EnviroSense/releases) 下載燒錄包，或用[網頁燒錄](./web-flasher/README.md)；也可看 [`firmware/release/`](./firmware/release/0.2.2-ha/README.md) 的說明。
 > 也可以用[網頁燒錄](./web-flasher/README.md)。韌體原始碼不公開。
 
 ## 核心結論：成敗在 WiFi 連線優化

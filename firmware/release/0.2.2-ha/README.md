@@ -35,8 +35,8 @@ flash.bat COM5
 需要先 `pip install esptool`（本資料夾只內建 Windows 版執行檔）：
 
 ```bash
-./flash.sh /dev/ttyACM0            # macOS: /dev/cu.usbmodemXXXX
-./flash.sh /dev/ttyACM0 update
+bash flash.sh /dev/ttyACM0       # macOS: /dev/cu.usbmodemXXXX
+bash flash.sh /dev/ttyACM0 update
 ```
 
 Linux 若出現 permission denied：`sudo usermod -aG dialout $USER` 後重新登入。

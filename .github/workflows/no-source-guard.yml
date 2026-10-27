@@ -1,0 +1,21 @@
+name: no-source-guard
+
+# 這個 repo 不公開韌體原始碼。有人（包含未來的自己）不小心 commit 了就讓檢查失敗。
+on:
+  push:
+  pull_request:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No firmware source / secrets tracked
+        run: |
+          bad=$(git ls-files | grep -E '\.(ino|cpp|c|h)$|(^|/)config\.h(\.example)?$|(^|/)DEVLOG\.md$|(^|/)\.env$' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::不應公開的檔案被追蹤："
+            echo "$bad"
+            exit 1
+          fi
+          echo "ok"

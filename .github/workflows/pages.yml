@@ -1,0 +1,56 @@
+name: pages
+
+# Release 發佈時，把該版的整合映像部署成網頁燒錄頁（GitHub Pages）。
+# 二進位檔不進 git：從 Release 附件下載，驗證 SHA256SUMS 後放進網站。
+on:
+  release:
+    types: [published]
+  workflow_dispatch:           # 手動執行時部署最新一版 Release
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build site from release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          TAG="${EVENT_TAG:-$(gh release view --json tagName -q .tagName)}"
+          VER="${TAG#v}"
+          echo "release: $TAG"
+
+          mkdir -p site/firmware dl
+          gh release download "$TAG" --pattern '*-merged.bin' --pattern 'SHA256SUMS.txt' --dir dl
+          BIN=$(basename dl/*-merged.bin)
+
+          # 校驗碼對不上就中止，不部署
+          (cd dl && grep -F "$BIN" SHA256SUMS.txt | sha256sum -c -)
+
+          cp "dl/$BIN" site/firmware/
+          sed "s/__VERSION__/$VER/g" web-flasher/index.html > site/index.html
+          sed -e "s/__VERSION__/$VER/g" -e "s#__BIN__#firmware/$BIN#g" \
+            web-flasher/manifest.template.json > site/manifest.json
+          python3 -c "import json; json.load(open('site/manifest.json'))"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -46,3 +46,8 @@ firmware/**/config.h.example
 # --- 公開版：內網資訊 / 第三方版權資料 ---
 DEVLOG.md
 hardware/datasheets/
+
+# 網頁燒錄本機預覽用的映像（正式由 pages.yml 從 Release 下載）
+web-flasher/firmware/
+# 本機發佈流程筆記（含本機路徑與原始碼位置）
+RELEASING.md
