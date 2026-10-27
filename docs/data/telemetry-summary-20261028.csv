@@ -1,0 +1,6 @@
+﻿group,node_id,interval_min,valid_rows,days,arrival_pct,up_median_ms,up_mean_ms,up_gt_1s_pct,awake_ms(up_mean+290),vbat_median_v,mah_per_day@1min,months@1min,mah_per_day@5min,months@5min,mah_per_day@15min,months@15min,mah_per_day@30min,months@30min
+new(bssid),8e8f50,1,8474,6.12,96.1,523,530,0.2,820,3.55,25.28,4.7,5.39,16.7,2.07,29.0,1.24,35.4
+old(no bssid)；不納入估算,8ef074,5,3204,11.08,100.4,523,549,0.47,839,4.09,25.86,4.6,5.5,16.5,2.11,28.7,1.26,35.3
+new(bssid),8f4700,5,1439,6.12,81.6,523,553,0.42,843,3.55,25.98,4.6,5.53,16.4,2.12,28.7,1.27,35.2
+old(no bssid)；不納入估算,901ce4,1,15053,11.08,94.3,522,624,3.14,914,4.02,28.12,4.3,5.96,15.6,2.26,27.8,1.34,34.6
+new(bssid) 合併,8e8f50+8f4700,-,9913,-,-,523,534,0.23,824,-,25.38,4.7,5.41,16.7,2.08,28.9,1.25,35.4

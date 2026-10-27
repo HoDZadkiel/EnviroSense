@@ -1,0 +1,48 @@
+# --- 機密設定（絕對不可入版控）---
+firmware/envirosense-node/config.h
+firmware/envirosense-node-0.2.0/config.h
+firmware/envirosense-node-ha/config.h
+firmware/envirosense-node-ha-0.2.0/config.h
+firmware/envirosense-node-ha-0.2.1/config.h
+firmware/envirosense-node-ha-0.2.2/config.h
+deploy/mosquitto/config/passwd
+deploy/**/secrets.yaml
+.env
+*.pem
+*.key
+
+# --- EasyEDA Pro ---
+hardware/**/backup/
+hardware/**/*.eprj2.lock
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- 產出物 ---
+*.gerber
+*.zip
+build/
+dist/
+
+# --- 編輯器 / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- 公開版：韌體原始碼不公開，只發佈 firmware/release 的二進位檔 ---
+firmware/**/*.ino
+firmware/**/*.cpp
+firmware/**/*.c
+firmware/**/*.h
+firmware/**/config.h.example
+# CI 要從原始碼編譯，公開 repo 沒有原始碼
+.github/workflows/firmware-build.yml
+
+# --- 公開版：內網資訊 / 第三方版權資料 ---
+DEVLOG.md
+hardware/datasheets/

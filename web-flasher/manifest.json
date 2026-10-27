@@ -1,0 +1,13 @@
+{
+  "name": "EnviroSense HA",
+  "version": "0.2.2-ha",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C6",
+      "parts": [
+        { "path": "firmware/envirosense-ha-0.2.2-esp32c6-merged.bin", "offset": 0 }
+      ]
+    }
+  ]
+}
