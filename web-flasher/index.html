@@ -45,6 +45,18 @@
   <p class="sub">把 HA 版韌體 <strong>__VERSION__</strong> 直接燒進 Seeed XIAO ESP32C6，不用安裝任何軟體。<br>
     Flash the EnviroSense HA firmware to a Seeed XIAO ESP32C6 straight from your browser.</p>
 
+  <section class="warn">
+    <h2>⚠ 需要本專案的電路板 / Requires the EnviroSense board</h2>
+    <p style="margin:0">
+      這個韌體是為 <strong>EnviroSense 載板</strong>設計的（SHT40 溫濕度感測器、電池電壓分壓與閘控、電池保護電路），
+      <strong>只燒在單獨的 XIAO ESP32C6 上無法正常量測</strong>。電路板的 Gerber、BOM 與設計檔在
+      <a href="https://github.com/HoDZadkiel/EnviroSense/tree/main/hardware">GitHub 專案的 hardware 資料夾</a>。<br>
+      This firmware is built for the EnviroSense carrier board (SHT40 sensor, gated battery divider, battery protection).
+      A bare XIAO ESP32C6 will not measure anything useful. Board files:
+      <a href="https://github.com/HoDZadkiel/EnviroSense/tree/main/hardware">github.com/HoDZadkiel/EnviroSense</a>.
+    </p>
+  </section>
+
   <section class="install">
     <esp-web-install-button manifest="manifest.json">
       <button slot="activate">連接並燒錄 / Connect &amp; Install</button>
@@ -74,7 +86,7 @@
     <ul>
       <li>安裝時會詢問是否<strong>清除整顆 flash</strong>。清除後 WiFi / MQTT 設定會消失，要重新設定。</li>
       <li>只想換韌體、保留設定：不要勾選清除，或改用離線工具的 <code>update</code> 模式。</li>
-      <li>只支援 <strong>XIAO ESP32C6</strong>，燒在其他晶片會失敗。</li>
+      <li>只支援 <strong>XIAO ESP32C6</strong>，燒在其他晶片會失敗；且要裝在上面說明的 EnviroSense 載板上才有用。</li>
     </ul>
   </section>
 
@@ -82,6 +94,7 @@
     <h2>關於 / About</h2>
     <p class="meta">
       作者 <a href="https://github.com/HoDZadkiel">HoDZadkiel</a> ·
+      專案 <a href="https://github.com/HoDZadkiel/EnviroSense">github.com/HoDZadkiel/EnviroSense</a> ·
       版本 __VERSION__ · 韌體不含任何 WiFi / MQTT 登入資料，設定在燒錄後由設定頁填寫。<br>
       燒錄全程在你的電腦上經 USB 進行，網頁只提供韌體檔。
       使用 <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a>（Apache-2.0）。
