@@ -9,8 +9,8 @@
 | `bom/`              | BOM 匯出檔                                      |
 | `gerber/`           | Gerber 打樣檔匯出                                 |
 
-目前狀態：**M5 進行中，PCB 已打樣**
-（`gerber/Gerber_PCB1_2026-08-21.zip`、`bom/BOM_Board1_PCB1_2026-08-21.xlsx`）。
+目前狀態：**PCB 已打樣並焊接完成，韌體已在實板上運作**
+（Gerber 各層檔案在 `gerber/`，BOM 為 `bom/BOM_Board1_PCB1_2026-08-21.xlsx`；電池座是 21700 座 BH-21700-B1BJ001，XIAO 用 castellated 封裝直接焊接）。
 BOM 已於 2026-09-30 對照 `gerber/FlyingProbeTesting.json` 還原的網表核對：
 DW01A 週邊（R5 100Ω、R6 1kΩ、C4 100nF）已補齊，接法與 datasheet 一致。
 

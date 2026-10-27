@@ -1,5 +1,9 @@
 # 設定與佈建（WiFiManager）
 
+> **注意（2026-10-28）**：本文以原版韌體的設定入口（冷開機後按 **BOOT 鍵**）說明。目前發佈的 HA 版改為
+> **冷開機後 LED 亮著的 10 秒內連按兩次 RESET**（原因：有一片板子的 BOOT 腳與 3V3 短路，按 BOOT 等於短路），
+> 不需要 OneButton。其餘設計（絕不自動開 portal、逾時、IP 策略）相同。續航數字以早期的 18650 計算，21700 見 [power-budget.md](./power-budget.md)。
+
 使用 WiFiManager 的 captive portal 讓使用者不需重編譯就能設定節點。
 但**低功耗專案用 WiFiManager 有兩個會咬人的地方**，先講這兩個，再講設定流程。
 

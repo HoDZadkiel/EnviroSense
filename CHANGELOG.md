@@ -5,6 +5,9 @@
 
 ## [Unreleased]
 
+### Docs
+- 依現行設計更新文件：電池以 21700（5000 mAh）為準、設定頁改連按兩次 RESET（HA 版）、里程碑對照現場運行、移除「尚未初始化 git」；舊 README 的設計說明移到 `docs/overview.md`
+
 ### Added
 - 專案初始架構、目錄結構與設計文件
 - XIAO ESP32 系列選型比較（C3 / S3 / C6），結論選用 C6

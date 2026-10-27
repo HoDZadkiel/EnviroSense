@@ -1,280 +1,186 @@
-# EnviroSense
+<h1 align="center">EnviroSense</h1>
 
-以 **Seeed XIAO ESP32C6 + 單顆 18650/21700 鋰電池 + MQTT** 建構的低功耗環境溫濕度感測節點。
+<p align="center">以 Seeed XIAO ESP32C6、單顆 21700 鋰電池與 MQTT 打造的低功耗環境溫濕度感測節點</p>
 
-**架構**：每次醒來就量測並立即上傳，不做批次緩衝。間隔 5 / 15 / 30 分鐘三選一。
-**目標**：單次充電運作 6 個月以上。
-**現況**：設計與可行性評估完成，**直接做 PCB（M5 進行中），不經洞洞板驗證**（見[里程碑](#%E9%96%8B%E7%99%BC%E9%87%8C%E7%A8%8B%E7%A2%91)）。
+<p align="center">
+  <img alt="type" src="https://img.shields.io/badge/type-embedded-blue" />
+  <img alt="status" src="https://img.shields.io/badge/status-in%20progress-yellow" />
+  <img alt="license" src="https://img.shields.io/badge/license-not%20specified-lightgrey" />
+</p>
 
-> **取得韌體**：到 [Releases](https://github.com/HoDZadkiel/EnviroSense/releases) 下載燒錄包，或用[網頁燒錄](./web-flasher/README.md)；也可看 [`firmware/release/`](./firmware/release/0.2.2-ha/README.md) 的說明。
-> 也可以用[網頁燒錄](./web-flasher/README.md)。韌體原始碼不公開。
+<!-- 封面：docs/images/cover.png，放載板 PCB 3D 渲染（尚無圖，之後補上） -->
 
-## 核心結論：成敗在 WiFi 連線優化
+<p align="center">
+  <a href="#-特色">特色</a> ·
+  <a href="#-快速開始">快速開始</a> ·
+  <a href="#-硬體">硬體</a> ·
+  <a href="#-文件">文件</a>
+</p>
 
-決定「醒來就傳」之後，**上傳佔了電路總耗電的 76.2%**（5 分鐘模式），
-深睡電流只佔 4.3%。喚醒視窗的長度幾乎就是唯一的設計變數。
+## ✨ 特色
 
-未優化的 Arduino 寫法（`WiFi.begin(ssid, pass)` + DHCP + DNS）約需 **4 秒**，
-把時間花在這些地方：
+- **一顆電池跑一年以上**：醒來才量測、量完立刻深睡。5 分鐘上傳一次，5000 mAh 的 21700 估計可撐 **約 16 個月**（見[續航估算](#續航估算)）
+- **量完馬上上傳**：每次喚醒讀 SHT40（±0.2 °C / ±1.8 %RH），經 MQTT 送到 broker；沒有批次緩衝，資料時間就是 broker 收到的時間
+- **接上 Home Assistant 就能用**：MQTT 自動探索，溫度、濕度、電池電壓、訊號強度自動出現；節點離線由 HA 的 `expire_after` 判斷
+- **斷線不掉資料**：每筆有遞增序號，WiFi 失敗時存下來、下次補送，並指數退避；絕不自己開設定頁耗電
+- **不用裝開發環境**：下載燒錄包，或直接用[網頁燒錄](https://hodzadkiel.github.io/EnviroSense/)，只需要知道裝置的 COM port
 
-| 階段                | 未優化         | 優化後         | 手段                   |
-|-------------------|-------------|-------------|----------------------|
-| 開機 / 載入 app       | 250 ms      | 150 ms      | 跳過映像驗證、QIO 80MHz     |
-| WiFi init + start | 300 ms      | 210 ms      | PHY 部分校正             |
-| **全頻掃描找 AP**      | 800 ms      | **0 ms**    | 快取 BSSID + channel   |
-| **關聯 + WPA2 握手**  | 1100 ms     | 350 ms      | 已知 BSSID/channel、訊號好 |
-| **DHCP 取得 IP**    | 1000 ms     | **0 ms**    | 靜態 IP                |
-| DNS 查 broker      | 200 ms      | **0 ms**    | 直接寫 IP               |
-| MQTT 連線+送出+斷線     | 300 ms      | 250 ms      | 不開 TLS、payload 小     |
-| 收尾進睡              | 50 ms       | 40 ms       |                      |
-| **合計**            | **4000 ms** | **1000 ms** | **能量降為 22%**         |
+> [!IMPORTANT]
+> 這個韌體是為 **EnviroSense 載板**設計的（SHT40、電池電壓分壓閘控、電池保護電路）。
+> 只燒在單獨的 XIAO ESP32C6 上無法正常量測。載板的 Gerber、BOM 與設計檔在 [`hardware/`](./hardware/)。
 
-**這個優化把 5 分鐘模式從不可行變成可行**：
+### 運作方式
 
-| 間隔    | 未優化 (4.0 s) | 優化後 (1.0 s)   | 6 個月所需視窗  |
-|-------|-------------|---------------|-----------|
-| 5 分鐘  | 2.7 個月 ❌    | **9.9 個月** ✅  | ≤ 1.85 s  |
-| 15 分鐘 | 7.2 個月 ✅    | **20.1 個月** ✅ | ≤ 5.56 s  |
-| 30 分鐘 | 12.3 個月 ✅   | **27.1 個月** ✅ | ≤ 11.13 s |
+```mermaid
+flowchart LR
+    S["深睡<br/>14 µA"] -->|"計時器喚醒"| R["讀 SHT40"]
+    R --> W["連 WiFi<br/>靜態 IP + BSSID 快取"]
+    W --> V["量電池電壓"]
+    V --> M["MQTT QoS1 上傳"]
+    M --> S
+    M -.-> B[("MQTT broker")] -.-> H["Home Assistant<br/>InfluxDB"]
+```
 
-（18650 3000mAh，含電池自放電與載板 DW01A 保護 IC 靜態電流）
+耗電幾乎都花在喚醒視窗：依功耗模型，**上傳佔總耗電的 76 %**（5 分鐘模式），深睡只佔 4 %。
+所以設計的重點是把視窗縮短 —— 已上線節點實測 `uptime_ms` 中位數 **523 ms**，加上 MQTT 收尾約 0.8 秒。
 
-手段逐項說明、實測數據與來源見 [`docs/wifi-optimization.md`](./docs/wifi-optimization.md)。
+### 規格
 
-## 選 5 / 15 / 30 哪一個
+| 項目 | 內容 |
+|---|---|
+| MCU | Seeed XIAO ESP32C6（深睡 14.3 µA、板載充電 120 mA、u.FL 外接天線） |
+| 感測器 | Nyfea SHT40-N-NF（I²C 0x44，量測 6.9 ms） |
+| 電池 | 21700 鋰電池（載板座位 BH-21700-B1BJ001），截止電壓 3.3 V |
+| 上傳間隔 | 1 / 5 / 15 / 30 分鐘，設定頁選擇 |
+| 通訊 | WiFi + MQTT（不開 TLS、QoS 1），Home Assistant 探索 |
+| 電池量測 | 2 MΩ / 2 MΩ 分壓 + 2N7002 閘控（不量時漏電趨近 0） |
+| 保護 | DW01A + 8205A（過放 / 過流），韌體四段式低電量處理 |
 
-|               | 5 分鐘                   | 15 分鐘       | 30 分鐘       |
-|---------------|------------------------|-------------|-------------|
-| 續航（18650，優化後） | 9.9 個月                 | 20.1 個月     | 27.1 個月     |
-| 續航（21700，優化後） | 14.7 個月                | 26.8 個月     | 33.8 個月     |
-| WiFi 優化       | **必要條件**               | 加分項         | 加分項         |
-| 視窗餘裕          | 1.0 / 1.85 s，只有 1.85 倍 | 5.6 s，5.6 倍 | 11.1 s，11 倍 |
-| 對 AP 慢的容忍度    | 低                      | 高           | 很高          |
+### 續航估算
 
-**建議先做 15 分鐘。** 理由是餘裕：15 分鐘就算優化只做一半（視窗 2 秒）仍有 13 個月，
-而 5 分鐘一旦實測視窗超過 1.85 秒就直接不達標，沒有退路。
-韌體把間隔做成可調（也可透過 MQTT 指令改），M2 實測拿到真實視窗後再決定要不要壓到 5 分鐘。
+用已上線節點的實測喚醒視窗（平均 824 ms）代入功耗模型，5000 mAh、可用 80 %：
 
-超過 24 個月的數字沒有實務意義 —— 那時電池自放電與日曆老化的不確定性遠大於負載本身，
-所以 30 分鐘的「27.1 個月」實際上應理解為「規劃一年充一次電，餘裕很大」。
+| 上傳間隔 | 每日耗電 | 預估續航 |
+|---|---|---|
+| 5 分鐘 | 5.4 mAh | **約 16.7 個月** |
+| 15 分鐘 | 2.1 mAh | 約 28.9 個月 |
+| 30 分鐘 | 1.3 mAh | 約 35.4 個月 |
 
-## 為什麼是 C6
+> [!NOTE]
+> 這是**模型估算**：視窗長度來自實測，但喚醒時的平均電流（75.8 mA）仍是估計值，
+> 還沒用 PPK2 量過。實際續航要靠長期放電曲線驗證，見 [功耗預算](./docs/power-budget.md)。
 
-C3 的板載 LDO（XC6210）靜態電流就有 35 µA，佔其深睡總電流的 78%；
-S3/C6 改用 **SGM6029 同步 buck**（2.8 µA，不是 LDO）。從 BAT 焊盤實測的深睡電流差了 3 倍：
+## 🚀 快速開始
 
-|                   | C3      | S3           | C6（選用）      |
-|-------------------|---------|--------------|-------------|
-| 深睡實測（BAT 焊盤 3.8V） | 45.1 µA | 11.9 µA      | 14.3 µA     |
-| PSRAM             | 無       | 8 MB（喚醒時的負擔） | 無           |
-| 充電電流              | 380 mA  | 50 mA        | 120 mA      |
-| 5 分鐘續航（優化後）       | 9.1 個月  | 9.2 個月       | **9.9 個月**  |
-| 30 分鐘續航（優化後）      | 21.6 個月 | 26.6 個月      | **27.1 個月** |
+你需要：一塊 EnviroSense 載板（已裝 XIAO ESP32C6、電池座與電芯）、一條可傳資料的 USB 線。
 
-兩個要點：
+**1. 讓晶片進燒錄模式**：按住 `BOOT` → 按一下 `RESET` → 放開 `BOOT`（節點平常在深睡，USB 序列埠不會出現）
 
-- **間隔越短，選型越不重要**。5 分鐘時 C6 只領先 C3 9%，因為深睡只佔 4.3%。 這也再次說明：**5 分鐘模式的勝負在 WiFi 優化，不在換板子**
-- **S3 深睡最低卻不推薦**：8MB PSRAM 初始化 + 雙核 Xtensa 讓每次喚醒更慢更耗電， 在 5 分鐘時只贏 C3 0.2 個月。且充電只有 50 mA
+**2. 燒錄韌體**，二選一：
 
-充電電流看似 C3 大勝，但 9~28 個月才充一次電，C6 用 120 mA 充 18650 要 28 小時完全可接受。
-（C6 的充電 IC 是 **SGM40567-4.2**，官方文件寫 100 mA，但原理圖上 R_IREF = 200kΩ
-反推是 120 mA。詳見 [`docs/mcu-selection.md`](./docs/mcu-selection.md)。）
-完整比較與來源見 [`docs/mcu-selection.md`](./docs/mcu-selection.md)。
+- **網頁燒錄**（桌面版 Chrome / Edge）：<https://hodzadkiel.github.io/EnviroSense/>
+- **燒錄包**：到 [Releases](https://github.com/HoDZadkiel/EnviroSense/releases) 下載 `*-flasher.zip`，解壓縮後
 
-## 專案結構
+  ```bat
+  flash.bat COM5
+  ```
+
+  Linux / macOS：`bash flash.sh /dev/ttyACM0`（需先 `pip install esptool`）。詳見 [燒錄說明](./firmware/release/0.2.2-ha/README.md)
+
+> [!WARNING]
+> 「全新安裝」會清掉整顆 flash，包含已存的 WiFi / MQTT 設定。只想換韌體、保留設定，選 **update**。
+
+**3. 設定**：按一次 `RESET`，LED 亮後 10 秒內再按一次 `RESET` → 節點開出 WiFi `EnviroSense-<MAC 後 6 碼>`，
+手機連上後會自動跳出設定頁：選 WiFi、填 broker、選上傳間隔與 IP 策略。180 秒沒存檔會自動關閉回去睡。
+
+**4. 看資料**：訂閱 `envirosense/<node_id>/state`，或在 Home Assistant 的 MQTT 整合裡找到新裝置。
+Mosquitto 與 HA 的設定範例在 [`deploy/`](./deploy/)，payload 格式見 [MQTT 協定](./docs/mqtt-protocol.md)。
+
+```json
+{"id":"a1b2c3","seq":1234,"t":24.31,"h":58.2,"vbat":3.92,"rssi":-58,"up":523,"flags":[]}
+```
+
+## 🔌 硬體
+
+載板很小：XIAO 直接焊在上面，加 SHT40、電池座、保護電路與電壓量測分壓。
+
+| XIAO 腳 | 接到 | 說明 |
+|---|---|---|
+| D4 / D5 | SHT40 SDA / SCL | 各有 10 kΩ 上拉到 3V3 |
+| A0 | 分壓中點 | 並 100 nF 到 GND |
+| D3 | 2N7002 閘極 | 高 = 啟用電池分壓量測 |
+| BAT+ / BAT- | 電池座 | **注意極性，接反會燒板** |
+
+<details>
+<summary>主要零件（完整 BOM 與選型理由見 <a href="./docs/hardware.md">docs/hardware.md</a>）</summary>
+
+| 零件 | 型號 | 用途 |
+|---|---|---|
+| MCU 模組 | Seeed XIAO ESP32C6 | 主控、WiFi、板載充電 |
+| 溫濕度 | Nyfea SHT40-N-NF | 量測，待機 0.1 µA |
+| 電池保護 | DW01A + 8205A | 過放 / 過流保護 |
+| 閘控開關 | 2N7002 | 只在量電池時接通分壓 |
+| 分壓電阻 | 2 MΩ × 2 | 量電池電壓 |
+| 電池座 | BH-21700-B1BJ001 | 21700 電芯 |
+
+</details>
+
+- 設計檔：[`hardware/EnviroSense_Node/`](./hardware/EnviroSense_Node/)（EasyEDA Pro）
+- 打樣：[`hardware/gerber/`](./hardware/gerber/)　BOM：[`hardware/bom/`](./hardware/bom/)
+- 組裝前請先讀 [`hardware/README.md`](./hardware/README.md)（有幾顆零件先不焊、焊接前要確認的腳位）
+
+## 📚 文件
+
+| 文件 | 內容 |
+|---|---|
+| [設計總覽](./docs/overview.md) | 原 README 的完整設計說明：WiFi 優化、韌體流程、MQTT 摘要、未完成項目與注意事項 |
+| [功耗預算](./docs/power-budget.md) | 耗電模型、續航估算、實測驗證計畫與現場遙測推估 |
+| [WiFi 連線優化](./docs/wifi-optimization.md) | 把喚醒視窗從 4 秒壓到 1 秒的手段與來源 |
+| [MQTT 協定](./docs/mqtt-protocol.md) | topic、payload 欄位、旗標、HA 探索 |
+| [設定與佈建](./docs/provisioning.md) | 設定頁流程、IP 策略、設定入口網站的耗電陷阱 |
+| [硬體設計](./docs/hardware.md) | 選型、電路、接線、BOM、電池保護 |
+| [MCU 選型](./docs/mcu-selection.md) | XIAO C3 / S3 / C6 比較 |
+| [線上燒錄研究](./docs/online-flashing.md) | 瀏覽器燒錄的運作方式 |
+| [遙測資料](./docs/data/README.md) | 續航推估用的逐筆資料與驗算公式 |
+
+## 📁 專案結構
 
 ```
 EnviroSense/
-├── README.md                       本檔案，總體設計
-├── CHANGELOG.md                    版本異動
-├── DEVLOG.md                       開發紀錄
-├── .github/workflows/              CI：arduino-cli 建置
-├── docs/
-│   ├── wifi-optimization.md        ★ 連線優化手段、實測數據、A/B 驗證清單
-│   ├── provisioning.md             ★ WiFiManager 設定流程、IP 策略、portal 耗電陷阱
-│   ├── power-budget.md             功耗預算、續航推導、實測方法
-│   ├── mcu-selection.md            XIAO C3/S3/C6 選型研究
-│   ├── hardware.md                 選型、閘控分壓電路、接線、BOM
-│   ├── mqtt-protocol.md            Topic/Payload 規格、HA 自動探索
-│   └── images/
-├── firmware/
-│   └── envirosense-node/           Arduino IDE sketch（esp32 core 3.x）
-│       ├── envirosense-node.ino
-│       └── config.h.example        設定範本（config.h 不入版控）
-├── hardware/
-│   ├── EnviroSense_Node/           EasyEDA Pro 專案（載板）
-│   ├── datasheets/  bom/
-├── deploy/
-│   ├── mosquitto/                  MQTT broker 設定
-│   └── homeassistant/              HA 整合設定
-└── scripts/
-    └── power_budget.py             功耗試算（所有月數的唯一來源）
+├── README.md
+├── CLAUDE.md            給 AI agent 的專案說明
+├── CHANGELOG.md         版本異動
+├── docs/                設計文件與研究
+│   └── data/            遙測資料快照（CSV）
+├── hardware/            載板：EasyEDA 專案、Gerber、BOM
+├── firmware/            預編譯韌體與燒錄工具（原始碼不公開）
+│   └── release/         各版本二進位檔、esptool、flash 腳本
+├── web-flasher/         網頁燒錄頁模板（發佈到 GitHub Pages）
+├── deploy/              Mosquitto 與 Home Assistant 設定範例
+├── scripts/             power_budget.py 功耗試算
+└── .github/workflows/   Pages 部署、原始碼外洩防護
 ```
 
-## 硬體摘要
+## 🗺️ Roadmap
 
-| 項目   | 選型                         | 重點                                                 |
-|------|----------------------------|----------------------------------------------------|
-| MCU  | Seeed XIAO ESP32C6         | 深睡 14.3 µA、板載充電 **120 mA**（SGM40567-4.2）、u.FL 外接天線 |
-| 感測器  | Nyfea SHT40-N-NF           | 待機 0.1 µA、量測 6.9 ms、±1.8%RH ±0.2°C、指令相容 SHT4x      |
-| 電池   | 18650；5 分鐘模式可考慮 21700      | 截止電壓 **3.3V**，不是 3.0V                              |
-| 電壓量測 | 2MΩ/2MΩ 分壓 **+ 2N7002 閘控** | 官方建議的 200k 分壓會漏 10.5 µA                            |
+**目前階段**：載板與韌體都已做出來並在跑（4 個節點、5 分鐘 / 1 分鐘間隔），正在補實測與長期驗證。
 
-**截止電壓 3.3V 的原因**：WiFi 發射瞬間電流達 250~350 mA，電池內阻加 LDO 壓降會讓電壓塌陷。
-靜態電壓低於 ~3.4V 時發射瞬間就可能 brownout 重啟 ——
-症狀是節點在低電量時隨機重開機、資料出現缺口。放棄最後 3~5% 電量換穩定性划算。
+- [x] 設計與可行性評估（功耗模型、MCU 與感測器選型）
+- [x] 載板打樣與焊接
+- [x] 韌體上線運作，發佈預編譯版本與網頁燒錄（0.2.2-ha）
+- [ ] 深睡電流與各階段電流實測（需要 PPK2，時程未定）
+- [ ] 實機驗證網頁燒錄與 `flash.bat`
+- [ ] 一顆節點連續跑 30 天，用放電曲線外推續航
+- [ ] 補上 LICENSE 與第三方授權聲明
 
-**分壓一定要閘控**：官方建議的 200k 分壓常時漏 10.5 µA，
-會讓深睡電流從 14.3 µA 變 24.8 µA。用 2M/2M + 2N7002 閘控可降到接近 0。
+## 📄 License
 
-電路、接線、BOM 見 [`docs/hardware.md`](./docs/hardware.md)。
+**尚未指定授權**，在選定之前保留所有權利。韌體原始碼不公開，只提供預編譯二進位檔。
 
-## 設定與佈建（WiFiManager）
-
-使用者透過手機連上節點開的 AP 設定，不需重編譯。可設定的項目：
-WiFi 憑證、**上傳間隔（5 / 15 / 30 下拉選單）**、MQTT broker、以及 IP 策略。
-
-低功耗專案用 WiFiManager 有兩個會咬人的地方，都已在設計中處理：
-
-### 設定入口網站絕不能自動開啟
-
-WiFiManager 預設「連不上就開 portal 等人來設定」。portal 開著約 80 mA，
-開 3 分鐘 = **4.0 mAh = 15 分鐘模式一整天的電**。
-若因為路由器重開機而每次喚醒都誤開，**電池 6 天見底**。
-
-所以：**連線失敗絕不開 portal**，只把資料存進 pending、指數退避、回去睡。
-設定模式只能由人明確觸發（冷開機後 10 秒內按 XIAO 板載 BOOT 鍵），且有硬性逾時與低電量拒絕。
-
-10 秒的按鍵等待用開機原因迴避 ——
-深睡計時器喚醒就是例行上傳，完全跳過等待，零延遲。
-
-### 「記住 DHCP 給的 IP」的假設要修正
-
-靜態 IP 這單獨一項值 **+37% ~ +80%** 續航，**5 分鐘模式靠它才達標**（5.5 → 9.9 個月），
-所以很值得做。但「DHCP 會自動避免發同一個 IP 給不同設備」這個前提不成立：
-
-- 節點改用靜態後就不再續約 → 租約必定過期 → IP 回到可分配池
-- 家用路由器有黏性，**短期內通常真的沒事**，所以問題會在數週後才浮現
-- **關鍵**：路由器發 IP 前的衝突偵測（ping / ARP 探測）對本專案無效 —— 節點 99.9% 在深睡不會回應，路由器判定沒人用就發給別人。 **一般保護靜態 IP 的安全網，剛好對深睡裝置失效**
-
-對策是保留這個做法，但加上續約與退路：
-
-| 模式                  | 做法                                                         |
-|---------------------|------------------------------------------------------------|
-| **自動**（預設，新手不必碰路由器） | 首次 DHCP → 記住 IP → 之後靜態；**每天一次改走 DHCP 續約**；失敗自動退回 DHCP 重新記錄 |
-| 手動                  | 使用者填路由器保留的 IP，**最安全**                                      |
-| 關閉                  | 每次都 DHCP，每次多約 1 秒                                          |
-
-每日續約的成本 **< 1% 續航**，換掉一個數週後才爆發的隱性故障。
-設定頁用「☑ 記住 IP 位址以加快連線（推薦）」呈現，避免出現 DHCP、子網路遮罩這種字眼。
-
-完整設計見 [`docs/provisioning.md`](./docs/provisioning.md)。
-
-## 韌體架構
-
-每次喚醒都是一次完整的 `setup()`，沒有 `loop()`。狀態存在 **RTC memory**
-（深睡保留、免寫 flash、無磨損）：
-
-```
-喚醒
- ├─ 開機原因 != 深睡喚醒？ → 檢查電壓 → LED 亮 10 秒，按 BOOT 鍵 → 設定模式
- │                          （例行喚醒完全跳過，零延遲；NVS 沒設定才自動進設定模式）
- ├─ 讀 RTC memory（seq / WiFi cache / 待補送資料 / 失敗次數）+ CRC 校驗
- ├─ 讀 NVS（間隔 / broker / IP 策略 / 快取的 IP）
- ├─ 今天該續約嗎？（每 1440/間隔 次）→ 是則走 DHCP，否則：
- ├─ WiFi.config(快取的 IP)                     ← 跳過 DHCP，省 ~1000ms
- ├─ WiFi.begin(ssid, pass, ch, bssid)          ← 跳過掃描，省 ~800ms
- ├─ ── 趁 WiFi 在背景關聯，同時做以下事 ──      ← 並行，省 ~20ms
- │    ├─ 讀 SHT40（高精度 8.2ms）
- │    └─ 拉高 2N7002 閘極（分壓 τ = 100 ms，要等 ≥ 500 ms 才能讀，見 docs/hardware.md）
- ├─ 等待 WiFi 連上（逾時 5s → 清 cache，全頻掃描挑訊號最強的 AP 重試一次，逾時 30s）
- ├─ 讀電池電壓（dummy read → 讀 → 拉低閘極）   ← 此時閘極已開 ≥ 500 ms
- ├─ esp_wifi_set_ps(WIFI_PS_NONE)              ← 視窗只有 1 秒，求快不求省
- ├─ MQTT connect(clean session, IP 直連) → publish QoS1 → disconnect
- │   ├─ 成功：更新 WiFi cache、清待補送、failCount = 0
- │   └─ 失敗：存進 pending、failCount++、指數退避、
- │             下次改走 DHCP 重新記錄 IP（flags: ip_recache）
- │             ⚠ 絕不開設定入口網站
- └─ esp_deep_sleep(下次間隔)
-```
-
-**RTC memory 而非 NVS**：WiFi cache 每次都可能更新，寫 NVS 既耗電又磨損 flash。
-NVS 只放 WiFi 憑證這類幾乎不變的設定。RTC memory 內容在異常重開後可能是垃圾，**必須做 CRC 校驗**。
-
-**時間戳不需要處理**：醒來即傳，所以 broker 收到的時間就是量測時間（誤差 < 1 秒）。
-不需要 NTP，RTC 振盪器 ±3~5% 的漂移只影響取樣間隔，不影響資料時間正確性。
-
-## MQTT 摘要
-
-```
-envirosense/<node_id>/state    ← 感測資料（JSON，QoS1，不 retain）
-envirosense/<node_id>/status   ← LWT：online / offline（retain）
-envirosense/<node_id>/cmd      ← 下行指令（約一天才訂閱一次）
-homeassistant/sensor/...       ← HA 自動探索（retain，僅首次開機發送）
-```
-
-```json
-{"id":"a1b2c3","seq":1234,"t":24.31,"h":58.2,"vbat":3.92,"rssi":-58,"up":980,"flags":[]}
-```
-
-`up` = 本次喚醒視窗耗時（ms），`rssi` = 訊號強度。
-**把這兩個欄位存進資料庫，就能在電池真的沒電之前先看出 WiFi 變慢。**
-成本 8 bytes，價值是提早幾個月預警。
-
-因為不做批次緩衝，**Home Assistant 完全相容**，不需要額外的資料庫橋接。
-完整規格見 [`docs/mqtt-protocol.md`](./docs/mqtt-protocol.md)。
-
-## 開發里程碑
-
-**本專案直接做 PCB，不經洞洞板驗證** —— M5 先行，M0~M4 改在打樣回來的實體板上進行。
-里程碑編號沿用原定義（M0~M6 的驗收內容不變），但執行順序是 M5 → M1 → … → M6（M0 延後）。
-
-- [ ] **M5 硬體載板** — EasyEDA Pro 畫板、打樣、組裝（載板焊接完成，剩電池座 U4 與 21700 電芯，見 [`hardware/`](./hardware/)）
-- [ ] **M0 可行性實測** — 在實體板上實測 C6 深睡電流（驗收：接近 14.3 µA）。
-      **延後**：實際續航受網路環境影響大，改以 M6 實際運行數據估算
-      （代價：焊接瑕疵造成的深睡漏電要到 M6 才看得出來，且看不出原因）
-- [ ] **M1 最小韌體** — 深睡 → 讀 SHT40 → 開 WiFi → MQTT 上傳 → 睡，先不優化， 測出「未優化」的真實視窗長度當作基準線
-- [ ] **M2 WiFi 優化** — 逐項套用並做 A/B 對照實測，回填 `scripts/power_budget.py`。 **這是本專案技術風險最高、價值也最高的一步**
-      （靜態 IP / BSSID 快取 / 每日 DHCP 續約已實作，待 A/B 實測）
-- [ ] **M3 韌體強健化** — RTC memory + CRC、失敗補送、指數退避（程式完成、編譯通過，待實板驗證）
-- [ ] **M4 電池管理** — 閘控分壓量測、四段式低電量處理（程式完成、編譯通過，待實板驗證）
-
-WiFiManager 設定頁（BOOT 鍵觸發）、HA 自動探索、`cmd` 下行指令也已實作，待實板驗證。
-- [ ] **M6 長期驗證** — 一顆節點連續跑 30 天，用實際放電曲線外推續航
-
-## 未完成項目 / 待決事項
-
-- **喚醒視窗 1.0 s 是拼湊估計值**（最高風險）：各階段時間有公開文獻依據， 但**平均電流全是估計**，且不是同一台機器量出來的。M2 必須實測
-- **BSSID + channel 快取的效果有互相矛盾的證據**：社群宣稱可省 800 ms， 但 Espressif 官方 FAQ 說 ESP32 無法靠 BSSID 加速，且有實測回報用了仍花 3201 ms。 **M2 必須做 A/B 對照**，無效就別留著
-- **Arduino framework 改不了 sdkconfig**：跳過映像驗證、PHY 校正、RTC 校正三項 是 ESP-IDF 選項，Arduino core 是預編譯二進位檔。這三項合計只省約 250 ms， 建議先走純 Arduino（可拿到 4000 → 1250 ms），不夠再考慮換 ESP-IDF
-- **深睡電流未自行實測**：14.3 µA 來自第三方論壇量測
-- **間隔未定案**：建議先做 15 分鐘（餘裕大），M2 實測後再決定要不要壓到 5 分鐘
-- **C6 的 RF switch 未確認**：C6 疑似有板載天線 + u.FL 兩路由 GPIO 切換， 該腳在深睡時的狀態可能影響耗電
-- **C6 的 WiFi6 連線時間未驗證**：接一般 WiFi 4/5 AP 走相容模式，需實測確認不會更慢
-- **佈署環境未定**：室內或戶外？戶外必須用百葉箱，否則日照直射會讓溫度偏高 5~10°C
-- **WiFiManager 的體積代價未量測**：會拉進 WebServer + DNSServer，binary 變大。 若沒開 skip-validate，bootloader 每次醒來對整個映像算 SHA256 的時間與大小成正比 —— **M2 必須量加入前後的喚醒視窗差多少**
-- **授權條款未定**：尚未建立 LICENSE
-
-### 若 1.0 秒還不夠：ESP-NOW
-
-唯一能再降一個數量級的方法是**不建立 WiFi 連線**。ESP-NOW 不掃描、不關聯、不握手、不要 IP，
-喚醒視窗可壓到 **450 ms**，5 分鐘模式續航 **20.4 個月**（是優化後 WiFi 的 2 倍）。
-
-代價是需要一台常供電的 gateway 把 ESP-NOW 轉發成 MQTT，多一個裝置與故障點。
-**建議先做完 M2 拿到真實數據再決定** —— 若選 15 或 30 分鐘，WiFi 版已有 20~27 個月，
-不需要 gateway 的複雜度。詳見 [`docs/wifi-optimization.md`](./docs/wifi-optimization.md)。
-
-## 注意事項
-
-- **不要引用晶片 datasheet 的深睡電流**。C3 與 C6 同代製程，深睡卻差 3 倍， 差別全在板子的 LDO 選型。要看「從 BAT 焊盤實測」的數字
-- **量功耗一定要用 release build 且不插 USB**。插著 USB 時板載充電 IC 會同時供電與充電， 量到的數字毫無意義；USB CDC 開著也會拉長開機時間
-- **WiFi 訊號品質直接換算成續航**。優化後 WPA2 握手佔視窗能量 46.2%， 而握手時間取決於 AP 回應速度與訊號品質，節點端無能為力。 佈署點 RSSI 應優於 **-70 dBm**，使用外接天線，**AP 不要開自動換頻道**（會讓快取失效）
-- **不要為了省電降頻**。能量 = 功率 × 時間，160 MHz 跑完 1 秒比 80 MHz 跑完 1.8 秒省
-- **靜態 IP 必須在路由器排除於 DHCP 池外**，否則遲早撞 IP，症狀是偶發性連不上
-- **鋰電池低溫容量衰減**：0°C 約剩 80%，-10°C 約剩 60%。戶外冬季要把上表月數再打折
-- 裸電芯務必外加保護板（DW01+8205A），但其過放點在 2.4~2.9V，遠低於本設計的 3.3V —— **保護板保護電芯不燒毀，續航與資料完整性靠韌體**
-- 本專案位於 Nextcloud 同步目錄，**尚未初始化 git**。 `.gitignore` / `.github/` 是為了將來推上遠端時能直接沿用而預先建立的
+預編譯韌體包含第三方程式（Arduino-esp32 核心、ESP-IDF、WiFiManager 等），燒錄包內的
+`esptool` 為 GPL-2.0（附授權文字，原始碼在 [espressif/esptool](https://github.com/espressif/esptool)），
+各自的授權條款以其專案為準。
 
 ---
 
-異動紀錄見 [`CHANGELOG.md`](./CHANGELOG.md)，開發過程見 [`DEVLOG.md`](./DEVLOG.md)。
+<p align="center">作者 <a href="https://github.com/HoDZadkiel">HoDZadkiel</a></p>

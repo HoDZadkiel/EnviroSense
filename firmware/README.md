@@ -3,7 +3,7 @@
 
 # 韌體
 
-Arduino IDE sketch，目標板 **Seeed XIAO ESP32C6**（esp32 core 3.x，已驗證 3.3.7 可編譯）。
+Arduino IDE sketch，目標板 **Seeed XIAO ESP32C6**（esp32 core 3.x，3.3.7 與 3.3.12 皆可編譯；發佈版用 3.3.12）。
 
 ## 建置
 
@@ -171,7 +171,7 @@ Arduino IDE 只編譯 sketch 根目錄與 `src/` 子資料夾。之後拆模組�
 
 ## 實作要點
 
-架構與狀態機見專案根目錄 [`README.md`](../README.md)，
+架構與狀態機見 [`docs/overview.md`](../docs/overview.md)，
 連線優化手段見 [`../docs/wifi-optimization.md`](../docs/wifi-optimization.md)。
 
 **這個專案的韌體工作有 80% 是在縮短喚醒視窗。** 幾件最容易踩雷的事：

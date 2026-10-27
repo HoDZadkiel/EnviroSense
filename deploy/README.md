@@ -1,6 +1,7 @@
 # 伺服器端佈署
 
-**broker 尚未定案** —— 接既有的 Home Assistant，或新架 Mosquitto，兩者都可行。
+**目前實際運作**：Mosquitto broker，Home Assistant 直接訂閱 MQTT；另有橋接程式把資料寫進 InfluxDB（橋接程式不在本專案內）。
+接既有的 Home Assistant 內建 broker 或另架 Mosquitto 都可行。
 
 | 路徑 | 內容 |
 |---|---|
