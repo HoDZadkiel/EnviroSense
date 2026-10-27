@@ -1,11 +1,11 @@
 name: pages
 
-# Release 發佈時，把該版的整合映像部署成網頁燒錄頁（GitHub Pages）。
+# 把最新一版 Release 的整合映像部署成網頁燒錄頁（GitHub Pages）。
+# 發佈 Release 後從 main 手動執行：gh workflow run pages --ref main
+# （不用 release 事件觸發：github-pages 環境只允許 main 分支，tag 觸發會被規則擋下）
 # 二進位檔不進 git：從 Release 附件下載，驗證 SHA256SUMS 後放進網站。
 on:
-  release:
-    types: [published]
-  workflow_dispatch:           # 手動執行時部署最新一版 Release
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -28,10 +28,9 @@ jobs:
       - name: Build site from release assets
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          TAG="${EVENT_TAG:-$(gh release view --json tagName -q .tagName)}"
+          TAG=$(gh release view --json tagName -q .tagName)
           VER="${TAG#v}"
           echo "release: $TAG"
 
