@@ -38,4 +38,7 @@ cd site && python -m http.server 8765      # 開 http://localhost:8765/
 
 - 已驗證（前一版）：頁面在 localhost 載入、元件已註冊、`navigator.serial` 可用、console 無錯誤
 - 已確認 ESP Web Tools 10.2.1 的套件內含 `esp32c6` 模組
-- **未驗證：實際連接裝置並燒錄**；`pages.yml` 還沒在 GitHub 上實際跑過
+- 已驗證（2026-10-28）：`pages.yml` 在 GitHub 上跑成功，線上提供的映像校驗碼與 Release 一致；
+  實機用網頁燒錄 `0.2.2-ha` 後可正常連上設定頁
+- 注意：同日重新發佈過 `0.2.2-ha`（原版本燒錄後進不了設定頁），見 `CHANGELOG.md`；
+  新版以 `USB CDC On Boot = Enabled` 編譯，與 `firmware/README.md` 的 release 建議值不同，功耗影響未驗證
