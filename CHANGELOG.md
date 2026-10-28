@@ -5,6 +5,11 @@
 
 ## [Unreleased]
 
+### Fixed
+- 重新發佈 `0.2.2-ha` 預編譯韌體（app / merged 與校驗碼已更換）：原版本燒錄後無法連上設定頁，重新編譯後正常。
+  原始碼未變，差異來自編譯選項（本次 `USB CDC On Boot = Enabled`；與 `firmware/README.md` 的 release 建議值 Disabled 不同，
+  會影響開機時間與功耗，**根因與功耗影響尚未驗證**）。bootloader / 分區表 / boot_app0 不變
+
 ### Docs
 - 依現行設計更新文件：電池以 21700（5000 mAh）為準、設定頁改連按兩次 RESET（HA 版）、里程碑對照現場運行、移除「尚未初始化 git」；舊 README 的設計說明移到 `docs/overview.md`
 

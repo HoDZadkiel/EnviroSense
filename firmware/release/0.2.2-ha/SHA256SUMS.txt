@@ -1,5 +1,5 @@
-e61438124c82a55796468957c9891346a7f7570faf8049fa4f148f3aaf333244 *envirosense-ha-0.2.2-esp32c6-app.bin
+d92a98308f6a1e68d766df04f2dccf8c15539198dbd39e4ec81cd5b274e2a149 *envirosense-ha-0.2.2-esp32c6-app.bin
 f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0 *envirosense-ha-0.2.2-esp32c6-boot_app0.bin
 a2ebc2b16ef67609d6bbbe542195b07f449c708943b5cf5307d4bef05e56d200 *envirosense-ha-0.2.2-esp32c6-bootloader.bin
-2edae79a24f1e0c5ff6872a408937063c6a4255da640f2e4dfff6c244602c77f *envirosense-ha-0.2.2-esp32c6-merged.bin
+69844741ad21216420b73db79d7edc2f1fef68fdf28ef429f6737d0b23e62f7e *envirosense-ha-0.2.2-esp32c6-merged.bin
 6a88d59601a83a16a19a08114b59d338324b8dec267d8b43e5d61ad56ec92102 *envirosense-ha-0.2.2-esp32c6-partitions.bin
