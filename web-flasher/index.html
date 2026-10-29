@@ -1,107 +1,478 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EnviroSense 網頁燒錄</title>
-<meta name="description" content="在瀏覽器直接把 EnviroSense HA 版韌體燒錄到 Seeed XIAO ESP32C6">
-<style>
-  :root {
-    --bg: #f6f7f9; --card: #fff; --text: #1d2330; --muted: #5d6677; --line: #dde1e8;
-    --accent: #0b7a5b; --warn-bg: #fff6e0; --warn-line: #e6b94a;
-  }
-  @media (prefers-color-scheme: dark) {
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b7a5b">
+  <meta name="color-scheme" content="light dark">
+  <title>EnviroSense 網頁燒錄</title>
+  <meta name="description" content="在瀏覽器直接把 EnviroSense HA 版韌體燒錄到 Seeed XIAO ESP32C6">
+  <style>
     :root {
-      --bg: #12151b; --card: #1b2029; --text: #e8ebf1; --muted: #9aa4b5; --line: #2c3340;
-      --accent: #36c9a0; --warn-bg: #2d2713; --warn-line: #8a6d1c;
+      color-scheme: light dark;
+      --bg: #f4f7f5; --card: #fff; --text: #21392f; --muted: #5f7268; --line: #dfe8e2;
+      --accent: #0b7a5b; --accent-hover: #086047; --accent-text: #fff; --accent-soft: #eaf4ee;
+      --soft: #f7f9f7; --warn-bg: #fff9ec; --warn-line: #eddfbb; --warn-text: #8b651d;
+      --shadow: 0 8px 32px rgb(29 63 44 / 4%);
     }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans TC", sans-serif; }
-  main { max-width: 680px; margin: 0 auto; padding: 32px 16px 56px; }
-  h1 { font-size: 1.6rem; margin: 0 0 4px; }
-  .sub { color: var(--muted); margin: 0 0 24px; }
-  section { background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 20px; margin-bottom: 16px; }
-  h2 { font-size: 1.05rem; margin: 0 0 10px; }
-  ol, ul { margin: 0; padding-left: 1.3em; }
-  li { margin: 4px 0; }
-  .warn { background: var(--warn-bg); border-color: var(--warn-line); }
-  .install { text-align: center; padding: 28px 20px; }
-  esp-web-install-button button {
-    background: var(--accent); color: #fff; border: 0; border-radius: 10px;
-    padding: 14px 32px; font-size: 1.05rem; font-weight: 600; cursor: pointer; }
-  esp-web-install-button button:hover { filter: brightness(1.08); }
-  .fallback { color: var(--muted); font-size: .95rem; }
-  .meta { color: var(--muted); font-size: .9rem; }
-  code { background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-size: .9em; }
-  a { color: var(--accent); }
-</style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.75 "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: var(--accent); text-underline-offset: 4px; }
+    a:hover { text-decoration-thickness: 2px; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
+    ::selection { background: var(--accent); color: var(--accent-text); }
+    svg { display: block; flex-shrink: 0; }
+    .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .shell { width: min(1120px, calc(100% - 64px)); margin-inline: auto; }
+    .site-header { border-bottom: 1px solid var(--line); }
+    .header-inner { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--accent); }
+    .brand-name { font-size: 21px; font-weight: 700; letter-spacing: -.7px; }
+    .brand-divider { height: 18px; width: 1px; background: var(--line); margin-inline: 6px; }
+    .brand-caption, .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 1.7px; }
+    .brand-caption { color: var(--muted); }
+    .project-link { display: inline-flex; gap: 8px; align-items: center; color: var(--muted); font-size: 13px; text-decoration: none; }
+    .project-link:hover { color: var(--accent); }
+    .project-link .icon { width: 17px; height: 17px; }
+    main { padding-bottom: 32px; }
+    .hero { padding: 48px 0 36px; display: grid; grid-template-columns: 1fr 330px; align-items: center; gap: 36px; }
+    .eyebrow { color: var(--accent); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+    .eyebrow::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    h1 { margin: 0 0 16px; font-size: clamp(32px, 4vw, 48px); letter-spacing: -1.5px; line-height: 1.3; font-weight: 700; }
+    h1 span { color: var(--accent); }
+    .hero-description { color: var(--muted); margin: 0; font-size: 15px; }
+    .english { display: block; color: var(--muted); font-size: 12px; line-height: 1.65; margin-top: 7px; }
+    .hero-art { color: var(--accent); width: 100%; height: auto; }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1.48fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); overflow: hidden; min-width: 0; }
+    .panel-heading { display: flex; align-items: flex-start; gap: 12px; }
+    .panel-heading .icon { margin-top: 3px; color: var(--accent); }
+    h2 { margin: 0; font-size: 18px; line-height: 1.5; letter-spacing: -.3px; }
+    .section-en { display: block; font-size: 11px; color: var(--muted); font-weight: 400; letter-spacing: .4px; margin-top: 2px; }
+    .install-panel { border-top: 3px solid var(--accent); }
+    .install-content { padding: 26px 30px 28px; }
+    .install-heading { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+    .version { border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; background: var(--soft); font: 11px/1.6 ui-monospace, "Cascadia Code", Consolas, monospace; color: var(--muted); overflow-wrap: anywhere; }
+    .device-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 22px 0 24px; }
+    .tag { display: inline-flex; align-items: center; gap: 6px; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: var(--muted); }
+    .tag .icon { width: 13px; height: 13px; }
+    esp-web-install-button { display: block; --esp-tools-button-color: var(--accent); --esp-tools-button-text-color: var(--accent-text); --esp-tools-button-border-radius: 10px; }
+    esp-web-install-button:not(:defined) > [slot="unsupported"], esp-web-install-button:not(:defined) > [slot="not-allowed"] { display: none; }
+    .install-button { width: 100%; border: 0; padding: 17px 22px; background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 12px; transition: background .18s, transform .18s, box-shadow .18s; }
+    .install-button:hover:enabled { background: var(--accent-hover); box-shadow: 0 5px 14px rgb(11 122 91 / 17%); transform: translateY(-1px); }
+    .install-button:active:enabled { transform: translateY(0); }
+    .install-button:disabled { cursor: wait; opacity: .65; }
+    .button-en { font-size: 11px; font-weight: 400; opacity: .8; margin-left: 2px; }
+    .install-caption { text-align: center; font-size: 11px; color: var(--muted); margin: 12px 0 0; }
+    .help-link { border: 0; padding: 2px 0; background: none; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+    .install-footer { padding: 13px 30px; border-top: 1px solid var(--line); background: var(--soft); display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 11px; color: var(--muted); }
+    .status { display: inline-flex; align-items: center; gap: 7px; }
+    .status-dot { height: 6px; width: 6px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .status[data-state="ready"] .status-dot { background: var(--accent); }
+    .status[data-state="warning"] .status-dot { background: var(--warn-text); }
+    .fallback { display: block; border: 1px solid var(--warn-line); border-radius: 10px; background: var(--warn-bg); color: var(--warn-text); padding: 16px; font-size: 13px; }
+    .fallback .english { color: inherit; opacity: .85; }
+    [hidden] { display: none !important; }
+    .board-note { padding: 25px 26px; background: var(--warn-bg); border-color: var(--warn-line); box-shadow: none; }
+    .note-label { display: flex; align-items: center; gap: 7px; color: var(--warn-text); font-size: 10px; font-weight: 600; letter-spacing: 1.3px; margin-bottom: 10px; }
+    .note-label .icon { width: 15px; height: 15px; }
+    .board-note h2 { font-size: 17px; }
+    .board-note p { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+    .board-note strong { color: var(--text); font-weight: 600; }
+    .board-note .english { font-size: 11px; margin-top: 10px; }
+    .text-link { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; text-decoration: none; margin-top: 15px; }
+    .text-link:hover { text-decoration: underline; }
+    .text-link .icon { width: 14px; height: 14px; }
+    .steps-panel { padding: 26px 30px 10px; }
+    .section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 25px; }
+    .section-index { font: 11px ui-monospace, Consolas, monospace; color: var(--muted); }
+    .steps { list-style: none; padding: 0; margin: 0; counter-reset: steps; }
+    .steps li { position: relative; padding: 0 0 24px 47px; counter-increment: steps; }
+    .steps li:not(:last-child)::after { content: ""; position: absolute; left: 14px; top: 35px; bottom: 5px; width: 1px; background: var(--line); }
+    .steps li::before { content: "0" counter(steps); position: absolute; left: 0; top: 0; width: 29px; height: 29px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font: 600 10px/1 ui-monospace, Consolas, monospace; }
+    .step-title { display: block; font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .steps p { margin: 0; color: var(--muted); font-size: 12px; }
+    .key-sequence { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 9px 0; color: var(--muted); font-size: 10px; }
+    kbd { background: var(--soft); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 2px 7px; font: 10px/1.65 ui-monospace, Consolas, monospace; color: var(--text); }
+    code { background: var(--soft); border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; font: .92em/1.7 ui-monospace, "Cascadia Code", Consolas, monospace; color: var(--text); overflow-wrap: anywhere; }
+    .settings-panel { padding: 26px; }
+    .settings-panel .panel-heading .icon { color: var(--muted); }
+    .settings-list { list-style: none; padding: 0; margin: 22px 0 0; }
+    .settings-list li { padding: 16px 0; border-top: 1px solid var(--line); }
+    .settings-list li:last-child { padding-bottom: 0; }
+    .settings-list h3 { margin: 0 0 6px; font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+    .settings-list p { margin: 0; color: var(--muted); font-size: 12px; }
+    .caution-dot { width: 6px; height: 6px; border-radius: 2px; background: var(--warn-text); flex-shrink: 0; }
+    .privacy-note { display: flex; align-items: flex-start; gap: 10px; margin: 24px 0 0; padding: 17px 20px; color: var(--muted); font-size: 11px; }
+    .privacy-note .icon { width: 16px; height: 16px; color: var(--accent); margin-top: 2px; }
+    .privacy-note p { margin: 0; }
+    .privacy-note strong { color: var(--text); font-weight: 500; }
+    .site-footer { border-top: 1px solid var(--line); }
+    .footer-inner { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding-block: 24px; color: var(--muted); font-size: 11px; }
+    .footer-inner p { margin: 0; }
+    .footer-inner a { color: var(--muted); text-decoration: none; }
+    .footer-inner a:hover { color: var(--accent); text-decoration: underline; }
+    .footer-links { display: flex; flex-wrap: wrap; gap: 16px; }
+    /* ESP Web Tools 10.2.1 uses Material Web tokens inside its shadow DOM. */
+    ewt-install-dialog, ewt-no-port-picked-dialog {
+      color: var(--text);
+      font-family: inherit;
+      --roboto-font: "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+      --text-color: var(--muted);
+      --danger-color: #ba493c;
+      --md-ref-typeface-brand: var(--roboto-font);
+      --md-ref-typeface-plain: var(--roboto-font);
+      --md-sys-color-primary: var(--accent);
+      --md-sys-color-on-primary: var(--accent-text);
+      --md-sys-color-secondary: var(--accent);
+      --md-sys-color-secondary-container: var(--accent-soft);
+      --md-sys-color-on-secondary-container: var(--text);
+      --md-sys-color-surface: var(--card);
+      --md-sys-color-surface-container: var(--card);
+      --md-sys-color-surface-container-high: var(--card);
+      --md-sys-color-surface-container-highest: var(--soft);
+      --md-sys-color-on-surface: var(--text);
+      --md-sys-color-on-surface-variant: var(--muted);
+      --md-sys-color-outline: var(--line);
+      --md-sys-color-outline-variant: var(--line);
+      --md-sys-color-error: var(--danger-color);
+      --md-sys-color-on-error: #fff;
+      --md-sys-color-scrim: #07150e;
+      --md-dialog-container-color: var(--card);
+      --md-dialog-container-shape: 22px;
+      --md-dialog-headline-color: var(--text);
+      --md-dialog-headline-font: var(--roboto-font);
+      --md-dialog-headline-size: 21px;
+      --md-dialog-headline-line-height: 30px;
+      --md-dialog-headline-weight: 600;
+      --md-dialog-supporting-text-color: var(--muted);
+      --md-dialog-supporting-text-font: var(--roboto-font);
+      --md-dialog-supporting-text-size: 14px;
+      --md-dialog-supporting-text-line-height: 24px;
+      --md-text-button-container-shape: 9px;
+      --md-text-button-label-text-font: var(--roboto-font);
+      --md-text-button-label-text-weight: 600;
+      --md-circular-progress-active-indicator-color: var(--accent);
+      --md-linear-progress-active-indicator-color: var(--accent);
+      --md-checkbox-selected-container-color: var(--accent);
+      --md-checkbox-selected-icon-color: var(--accent-text);
+      --md-filled-text-field-container-color: var(--soft);
+      --md-filled-select-text-field-container-color: var(--soft);
+      --md-list-container-color: var(--card);
+      --md-menu-container-color: var(--card);
+    }
+    ewt-install-dialog[state="ASK_ERASE"] { --md-checkbox-selected-container-color: var(--danger-color); --md-checkbox-selected-icon-color: #fff; }
+    .connection-dialog { width: min(480px, calc(100% - 32px)); max-height: calc(100dvh - 40px); padding: 0; border: 1px solid var(--line); border-radius: 22px; background: var(--card); color: var(--text); box-shadow: 0 24px 100px rgb(0 20 10 / 25%); font: inherit; }
+    .connection-dialog::backdrop { background: rgb(7 21 14 / 55%); backdrop-filter: blur(5px); }
+    .connection-dialog[open] { animation: dialog-in .18s ease-out; }
+    .dialog-body { padding: 30px; }
+    .dialog-topline { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .dialog-icon { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); }
+    .dialog-icon .icon { width: 24px; height: 24px; }
+    .dialog-close { width: 36px; height: 36px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); background: var(--card); cursor: pointer; }
+    .dialog-close:hover { background: var(--soft); color: var(--text); }
+    .connection-dialog h2 { font-size: 22px; }
+    .dialog-description { color: var(--muted); font-size: 13px; margin: 10px 0 22px; }
+    .connection-checks { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+    .connection-checks li { display: flex; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); font-size: 12px; }
+    .connection-checks .icon { color: var(--accent); width: 17px; height: 17px; margin-top: 2px; }
+    .dialog-error { margin: 18px 0 0; padding: 12px; border-radius: 8px; border: 1px solid var(--warn-line); background: var(--warn-bg); color: var(--warn-text); font: 11px/1.7 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 30px; background: var(--soft); border-top: 1px solid var(--line); }
+    .dialog-button { min-height: 44px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 9px; font: inherit; font-size: 13px; font-weight: 600; line-height: 1.5; background: var(--card); color: var(--text); cursor: pointer; }
+    .dialog-button:hover { background: var(--accent-soft); }
+    .dialog-button.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+    .dialog-button.primary:hover { background: var(--accent-hover); }
+    body:has(.connection-dialog[open]) { overflow: hidden; }
+    @keyframes dialog-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #111b17; --card: #19261f; --text: #e2ece5; --muted: #a0b3a6; --line: #2c3e33;
+        --accent: #6cd4a5; --accent-hover: #92e3be; --accent-text: #102a1e; --accent-soft: #223d2f;
+        --soft: #16221c; --warn-bg: #2a281c; --warn-line: #4a4430; --warn-text: #dec17d; --shadow: none;
+      }
+      ewt-install-dialog, ewt-no-port-picked-dialog { --danger-color: #f19b8e; }
+    }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr 240px; gap: 20px; }
+      .workspace { gap: 18px; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+      .install-content, .steps-panel { padding-inline: 24px; }
+      .board-note, .settings-panel { padding: 24px; }
+      .install-heading { align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+      .button-en { display: none; }
+    }
+    @media (max-width: 700px) {
+      .shell { width: calc(100% - 36px); }
+      .header-inner { min-height: 72px; gap: 12px; }
+      .brand-caption, .brand-divider { display: none; }
+      .brand-name { font-size: 19px; }
+      .brand-icon { width: 35px; height: 35px; border-radius: 10px; }
+      .project-link { font-size: 12px; }
+      .hero { padding: 34px 0 28px; grid-template-columns: 1fr; gap: 0; }
+      .hero-art { display: none; }
+      .eyebrow { font-size: 9px; letter-spacing: 1.1px; }
+      h1 { font-size: 35px; letter-spacing: -1px; margin-bottom: 14px; }
+      h1 span { display: block; }
+      .hero-description { font-size: 13px; }
+      .hero .english { font-size: 11px; max-width: 40ch; }
+      .workspace { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+      .install-content { padding: 22px; }
+      .install-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+      .install-heading .panel-heading { gap: 10px; }
+      .install-heading .section-en { max-width: 145px; }
+      .version { font-size: 10px; }
+      .device-row { margin: 18px 0 20px; }
+      .install-footer { padding: 12px 22px; flex-wrap: wrap; gap: 4px 12px; }
+      .board-note { padding: 22px; }
+      .steps-panel { padding: 24px 22px 2px; }
+      .settings-panel { padding: 24px 22px; }
+      .privacy-note { margin-top: 18px; padding: 6px 4px; }
+      .footer-inner { align-items: flex-start; flex-direction: column; gap: 10px; padding-block: 20px; }
+      .dialog-body { padding: 24px; }
+      .dialog-actions { padding: 16px 24px; flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) { .install-button { transition: none; } .connection-dialog[open] { animation: none; } }
+  </style>
 </head>
 <body>
-<main>
-  <h1>EnviroSense 網頁燒錄</h1>
-  <p class="sub">把 HA 版韌體 <strong>__VERSION__</strong> 直接燒進 Seeed XIAO ESP32C6，不用安裝任何軟體。<br>
-    Flash the EnviroSense HA firmware to a Seeed XIAO ESP32C6 straight from your browser.</p>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <div class="brand" aria-label="EnviroSense Web Flasher">
+        <span class="brand-icon" aria-hidden="true">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M19 4c-8-1-14 2-14 8a7 7 0 0 0 2 5c7 2 13-3 12-13Z"/><path d="M4 21 15 10M9 16v-5m4 1h4"/></svg>
+        </span>
+        <span class="brand-name">EnviroSense</span><span class="brand-divider" aria-hidden="true"></span><span class="brand-caption">WEB FLASHER</span>
+      </div>
+      <a class="project-link" href="https://github.com/HoDZadkiel/EnviroSense">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4 1-4-2-6-2m12 5v-3.8a3.3 3.3 0 0 0-.9-2.6c3-.3 6.2-1.5 6.2-6.7a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.1-.3-3.7 1.4a12.8 12.8 0 0 0-6.6 0C5.9 1.4 4.8 1.7 4.8 1.7a4.8 4.8 0 0 0-.1 3.6 5.2 5.2 0 0 0-1.4 3.6c0 5.2 3.2 6.4 6.2 6.7a3.3 3.3 0 0 0-.9 2.6V22"/></svg>
+        GitHub 專案 <span aria-hidden="true">↗</span>
+      </a>
+    </div>
+  </header>
+  <main class="shell">
+    <section class="hero" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">HOME ASSISTANT EDITION</p>
+        <h1 id="page-title">感知環境，<span>從連接開始。</span></h1>
+        <p class="hero-description">EnviroSense 網頁韌體燒錄工具<br>一條 USB 線，直接從瀏覽器安裝，無需額外軟體。
+          <span class="english" lang="en">Flash the EnviroSense HA firmware to your Seeed XIAO ESP32C6.<br>Right from your browser. No additional software needed.</span>
+        </p>
+      </div>
+      <svg class="hero-art" viewBox="0 0 330 220" fill="none" aria-hidden="true">
+        <circle cx="169" cy="106" r="89" stroke="currentColor" stroke-opacity=".12"/>
+        <circle cx="169" cy="106" r="68" stroke="currentColor" stroke-opacity=".12" stroke-dasharray="3 6"/>
+        <path d="M10 108h56m206 0h48M169 6v21m0 161v22" stroke="currentColor" stroke-opacity=".18"/>
+        <circle cx="80" cy="106" r="3" fill="currentColor" fill-opacity=".45"/><circle cx="258" cy="106" r="3" fill="currentColor" fill-opacity=".45"/>
+        <g transform="translate(112 37) rotate(8 56 68)">
+          <rect width="112" height="140" rx="14" fill="var(--accent-soft)" stroke="currentColor" stroke-opacity=".3"/>
+          <rect x="34" y="-5" width="44" height="20" rx="5" fill="var(--card)" stroke="currentColor" stroke-opacity=".4"/>
+          <path d="M45 3h22" stroke="currentColor" stroke-opacity=".4" stroke-width="3" stroke-linecap="round"/>
+          <rect x="27" y="38" width="58" height="59" rx="6" fill="var(--card)" stroke="currentColor" stroke-opacity=".35"/>
+          <path d="M41 52h30v30H41zM47 38V24h-8m26 14V25h9M27 55H15V37M27 78H13v26m72-49h13V35M85 78h14v26M47 97v20H29m36-20v20h19" stroke="currentColor" stroke-opacity=".35"/>
+          <path d="M51 67h10m-5-5v10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <g fill="currentColor" fill-opacity=".35"><circle cx="12" cy="22" r="2"/><circle cx="100" cy="22" r="2"/><circle cx="12" cy="119" r="2"/><circle cx="100" cy="119" r="2"/></g>
+          <circle cx="56" cy="126" r="3" fill="currentColor"/>
+        </g>
+        <rect x="225" y="42" width="75" height="28" rx="14" fill="var(--card)" stroke="var(--line)"/>
+        <circle cx="239" cy="56" r="3" fill="currentColor"/>
+        <text x="249" y="60" fill="currentColor" font-family="system-ui, sans-serif" font-size="9" letter-spacing=".5">ESP32C6</text>
+        <text x="169" y="211" text-anchor="middle" fill="currentColor" fill-opacity=".6" font-family="ui-monospace, monospace" font-size="8" letter-spacing="2">SMALL BOARD. BIG POSSIBILITIES.</text>
+      </svg>
+    </section>
+    <div class="workspace">
+      <section class="panel install-panel" aria-labelledby="install-title">
+        <div class="install-content">
+          <div class="install-heading">
+            <div class="panel-heading">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M4 16v4h16v-4"/></svg>
+              <h2 id="install-title">安裝韌體<span class="section-en" lang="en">Connect your device. Make it sense.</span></h2>
+            </div>
+            <span class="version" aria-label="韌體版本">__VERSION__</span>
+          </div>
+          <div class="device-row" aria-label="韌體與硬體資訊">
+            <span class="tag"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4"/></svg>Seeed XIAO ESP32C6</span>
+            <span class="tag">HA 韌體</span><span class="tag">USB 直連</span>
+          </div>
+          <esp-web-install-button manifest="manifest.json">
+            <button class="install-button" slot="activate" type="button" disabled>
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v15m0-15-3 3m3-3 3 3M7 9v4a5 5 0 0 0 5 5m5-8v3a5 5 0 0 1-5 5"/><circle cx="7" cy="8" r="1.5"/><path d="M15.5 7h3v3h-3z"/><circle cx="12" cy="20" r="1.5"/></svg>
+              <span>連接並燒錄 <span class="button-en" lang="en">Connect &amp; Install</span></span><span aria-hidden="true">→</span>
+            </button>
+            <span slot="unsupported" class="fallback">這個瀏覽器不支援 Web Serial。請使用桌面版 Chrome 或 Edge，或使用專案 release 資料夾中的離線工具 <code>flash.bat</code>。
+              <span class="english" lang="en">This browser has no Web Serial. Use desktop Chrome or Edge, or the offline flash.bat tool.</span>
+            </span>
+            <span slot="not-allowed" class="fallback">需要 HTTPS 連線或 localhost 才能使用序列埠。
+              <span class="english" lang="en">Serial access requires HTTPS or localhost.</span>
+            </span>
+          </esp-web-install-button>
+          <p id="load-error" class="fallback" role="alert" hidden>燒錄元件載入失敗，請檢查網路後重新整理，或使用離線工具 <code>flash.bat</code>。</p>
+          <noscript><p class="fallback">請啟用 JavaScript 以載入燒錄工具，或使用離線工具 <code>flash.bat</code>。</p></noscript>
+          <p class="install-caption">先接上裝置並進入燒錄模式，再選擇 USB 序列埠。 <button class="help-link" id="connection-help" type="button">連線協助</button></p>
+        </div>
+        <div class="install-footer">
+          <span id="browser-status" class="status" role="status"><span class="status-dot" aria-hidden="true"></span><span id="status-label">正在載入燒錄工具…</span></span>
+          <span>建議使用桌面版 Chrome / Edge</span>
+        </div>
+      </section>
+      <aside class="panel board-note" aria-labelledby="board-title">
+        <div class="note-label"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v4m0 3h.01"/></svg>HARDWARE REQUIREMENT</div>
+        <h2 id="board-title">小提醒：需要 EnviroSense 載板</h2>
+        <p>韌體專為搭載 <strong>SHT40 溫濕度感測器、電池電壓分壓與閘控、電池保護電路</strong>的 EnviroSense 載板設計。<strong>單獨的 XIAO ESP32C6 無法正常量測。</strong></p>
+        <p class="english" lang="en">Requires the EnviroSense carrier board with SHT40, gated battery divider and battery protection. A bare XIAO ESP32C6 will not measure correctly.</p>
+        <a class="text-link" href="https://github.com/HoDZadkiel/EnviroSense/tree/main/hardware">查看電路板 Gerber、BOM 與設計檔<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+      </aside>
+      <section class="panel steps-panel" aria-labelledby="steps-title">
+        <div class="section-heading"><h2 id="steps-title">四步，完成連接<span class="section-en" lang="en">Before you start</span></h2><span class="section-index" aria-hidden="true">01 — 04</span></div>
+        <ol class="steps">
+          <li><span class="step-title">用 USB 線連接電腦</span><p>請使用<strong>可傳輸資料的 USB 線</strong>，僅供充電的線材無法燒錄。</p></li>
+          <li><span class="step-title">讓裝置進入燒錄模式</span>
+            <div class="key-sequence"><span>按住</span><kbd>BOOT</kbd><span>→ 按一下</span><kbd>RESET</kbd><span>→ 放開</span><kbd>BOOT</kbd></div>
+            <p>節點平常處於深睡模式，USB 序列埠不會出現，請先完成這個步驟。</p>
+          </li>
+          <li><span class="step-title">選擇序列埠，開始燒錄</span><p>點擊「連接並燒錄」，在視窗中選擇 <code>USB JTAG/serial debug unit</code> 或名稱類似的 COM port。</p></li>
+          <li><span class="step-title">重新啟動，完成設定</span><p>燒錄完成後按一次 <kbd>RESET</kbd>。<strong>首次安裝</strong>時，請在 LED 亮起後 10 秒內再按一次 <kbd>RESET</kbd>，開啟設定頁。</p></li>
+        </ol>
+      </section>
+      <section class="panel settings-panel" aria-labelledby="settings-title">
+        <div class="panel-heading">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4Z"/><path d="M12 8v5m0 3h.01"/></svg>
+          <h2 id="settings-title">燒錄前，再確認一下<span class="section-en" lang="en">Erase &amp; settings</span></h2>
+        </div>
+        <ul class="settings-list">
+          <li><h3><span class="caution-dot" aria-hidden="true"></span>清除 flash 會重設設定</h3><p>安裝時會詢問是否清除整顆 flash。清除後，WiFi 與 MQTT 設定會消失，需要重新設定。</p></li>
+          <li><h3>更新韌體，也可以保留設定</h3><p>若只想更換韌體，請不要勾選清除，或使用離線工具的 <code>update</code> 模式。</p></li>
+          <li><h3>確認使用正確的硬體</h3><p>僅支援 <strong>XIAO ESP32C6</strong>，其他晶片將無法燒錄。裝置也需搭配 EnviroSense 載板才能正常運作。</p></li>
+        </ul>
+      </section>
+    </div>
+    <div class="privacy-note">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></svg>
+      <p><strong>透過 USB，在你的電腦上完成燒錄。</strong>網頁只提供韌體檔；韌體不含任何 WiFi / MQTT 登入資料，請在燒錄後透過設定頁填寫。</p>
+    </div>
+  </main>
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <p>EnviroSense <span aria-hidden="true">·</span> 由 <a href="https://github.com/HoDZadkiel">HoDZadkiel</a> 製作 <span aria-hidden="true">/</span> __VERSION__</p>
+      <div class="footer-links"><a href="https://github.com/HoDZadkiel/EnviroSense">GitHub 專案 ↗</a><span>Powered by <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a> <span aria-label="授權">(Apache-2.0)</span></span></div>
+    </div>
+  </footer>
+  <dialog class="connection-dialog" id="connection-dialog" aria-labelledby="connection-title" aria-describedby="connection-description">
+    <div class="dialog-body">
+      <div class="dialog-topline">
+        <span class="dialog-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3v15m0-15-3 3m3-3 3 3M7 9v4a5 5 0 0 0 5 5m5-8v3a5 5 0 0 1-5 5"/><circle cx="7" cy="8" r="1.5"/><path d="M15.5 7h3v3h-3z"/><circle cx="12" cy="20" r="1.5"/></svg></span>
+        <button class="dialog-close" id="connection-close" type="button" aria-label="關閉連線協助" autofocus><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button>
+      </div>
+      <p class="eyebrow">LET’S GET CONNECTED</p>
+      <h2 id="connection-title">找不到你的裝置？</h2>
+      <p class="dialog-description" id="connection-description">先確認以下三件事，再重新選擇 USB 序列埠。</p>
+      <ul class="connection-checks">
+        <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>換用<strong>可傳輸資料的 USB 線</strong>，並確認接頭已插緊。</span></li>
+        <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>按住 <kbd>BOOT</kbd> → 按一下 <kbd>RESET</kbd> → 放開 <kbd>BOOT</kbd>，進入燒錄模式。</span></li>
+        <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>關閉正在使用序列埠的其他程式，再選擇 <code>USB JTAG/serial debug unit</code>。</span></li>
+      </ul>
+      <p class="dialog-error" id="connection-error" hidden></p>
+    </div>
+    <div class="dialog-actions"><button class="dialog-button" id="connection-dismiss" type="button">稍後再試</button><button class="dialog-button primary" id="connection-retry" type="button">選擇裝置 →</button></div>
+  </dialog>
+  <script type="module" id="esp-tools" src="https://unpkg.com/esp-web-tools@10.2.1/dist/web/install-button.js?module"></script>
+  <script>
+    const browserStatus = document.getElementById('browser-status');
+    const statusLabel = document.getElementById('status-label');
+    const installButton = document.querySelector('.install-button');
+    const secure = window.isSecureContext;
+    const supported = 'serial' in navigator;
+    const connectionDialog = document.getElementById('connection-dialog');
+    const connectionError = document.getElementById('connection-error');
+    const retryButton = document.getElementById('connection-retry');
+    // This bundled dialog belongs to the same pinned 10.2.1 release as the button.
+    const dialogModuleUrl = 'https://unpkg.com/esp-web-tools@10.2.1/dist/web/install-dialog-C5LjR_e6.js?module';
+    let toolsReady = false;
+    let connectionPending = false;
 
-  <section class="warn">
-    <h2>⚠ 需要本專案的電路板 / Requires the EnviroSense board</h2>
-    <p style="margin:0">
-      這個韌體是為 <strong>EnviroSense 載板</strong>設計的（SHT40 溫濕度感測器、電池電壓分壓與閘控、電池保護電路），
-      <strong>只燒在單獨的 XIAO ESP32C6 上無法正常量測</strong>。電路板的 Gerber、BOM 與設計檔在
-      <a href="https://github.com/HoDZadkiel/EnviroSense/tree/main/hardware">GitHub 專案的 hardware 資料夾</a>。<br>
-      This firmware is built for the EnviroSense carrier board (SHT40 sensor, gated battery divider, battery protection).
-      A bare XIAO ESP32C6 will not measure anything useful. Board files:
-      <a href="https://github.com/HoDZadkiel/EnviroSense/tree/main/hardware">github.com/HoDZadkiel/EnviroSense</a>.
-    </p>
-  </section>
+    function setStatus(message, state) {
+      statusLabel.textContent = message;
+      browserStatus.dataset.state = state;
+    }
+    function restoreStatus() {
+      setStatus(!secure ? '請使用 HTTPS 或 localhost' : supported ? '瀏覽器支援 Web Serial' : '此瀏覽器不支援 Web Serial', secure && supported ? 'ready' : 'warning');
+    }
+    function showConnectionHelp(error) {
+      const cancelled = !error || error.name === 'NotFoundError';
+      document.getElementById('connection-title').textContent = cancelled ? '找不到你的裝置？' : '裝置暫時無法連接';
+      document.getElementById('connection-description').textContent = !secure ? '請透過 HTTPS 或 localhost 開啟此頁面，才能存取 USB 序列埠。' : !supported ? '請使用支援 Web Serial 的桌面版 Chrome 或 Edge，或使用離線工具 flash.bat。' : cancelled ? '先確認以下三件事，再重新選擇 USB 序列埠。' : '請確認裝置已就緒，且沒有其他程式佔用序列埠。';
+      connectionError.hidden = cancelled;
+      connectionError.textContent = cancelled ? '' : error.message || '請重新連接裝置後再試一次。';
+      retryButton.hidden = !secure || !supported || !toolsReady;
+      if (!connectionDialog.open) connectionDialog.showModal();
+    }
+    function closeConnectionHelp() { connectionDialog.close(); }
+    document.getElementById('connection-help').addEventListener('click', () => showConnectionHelp());
+    document.getElementById('connection-close').addEventListener('click', closeConnectionHelp);
+    document.getElementById('connection-dismiss').addEventListener('click', closeConnectionHelp);
 
-  <section class="install">
-    <esp-web-install-button manifest="manifest.json">
-      <button slot="activate">連接並燒錄 / Connect &amp; Install</button>
-      <span slot="unsupported" class="fallback">
-        這個瀏覽器不支援 Web Serial。請用桌面版 Chrome 或 Edge，或改用專案 release 資料夾裡的離線工具 <code>flash.bat</code>。<br>
-        This browser has no Web Serial. Use desktop Chrome or Edge, or the offline <code>flash.bat</code> tool.
-      </span>
-      <span slot="not-allowed" class="fallback">
-        需要 HTTPS 連線（或 localhost）才能使用序列埠。 / Serial access needs HTTPS.
-      </span>
-    </esp-web-install-button>
-  </section>
+    async function connectDevice(event) {
+      // Handle connection errors here instead of the library's native alert().
+      // The official dialog still owns confirmation, erase choices and flashing.
+      event.preventDefault();
+      event.stopPropagation();
+      if (connectionPending || !toolsReady || !secure || !supported) return;
+      if (connectionDialog.open) connectionDialog.close();
+      connectionPending = true;
+      installButton.disabled = true;
+      let port;
+      let portOpened = false;
+      let dialogOpened = false;
+      try {
+        // Request the port directly in the click handler to retain user activation.
+        const portRequest = navigator.serial.requestPort();
+        setStatus('請在瀏覽器視窗中選擇裝置…', 'loading');
+        port = await portRequest;
+        setStatus('正在連接裝置…', 'loading');
+        await import(dialogModuleUrl);
+        await port.open({ baudRate: 115200, bufferSize: 8192 });
+        portOpened = true;
+        const dialog = document.createElement('ewt-install-dialog');
+        const installer = document.querySelector('esp-web-install-button');
+        dialog.port = port;
+        dialog.manifestPath = installer.manifest || installer.getAttribute('manifest');
+        dialog.overrides = installer.overrides;
+        dialog.addEventListener('closed', async () => {
+          try { await port.close(); } catch { /* The device may already be disconnected. */ }
+          connectionPending = false;
+          installButton.disabled = false;
+          restoreStatus();
+          installButton.focus();
+        }, { once: true });
+        document.body.append(dialog);
+        dialogOpened = true;
+        setStatus('裝置已連接', 'ready');
+      } catch (error) {
+        if (portOpened) {
+          try { await port.close(); } catch { /* The device may already be disconnected. */ }
+        }
+        restoreStatus();
+        showConnectionHelp(error);
+      } finally {
+        if (!dialogOpened) {
+          connectionPending = false;
+          installButton.disabled = false;
+        }
+      }
+    }
+    installButton.addEventListener('click', connectDevice);
+    retryButton.addEventListener('click', connectDevice);
 
-  <section>
-    <h2>燒錄前 / Before you start</h2>
-    <ol>
-      <li>用<strong>可傳資料的 USB 線</strong>接上電腦</li>
-      <li>讓晶片進燒錄模式：<strong>按住 BOOT → 按一下 RESET → 放開 BOOT</strong>
-        （節點平常在深睡，USB 序列埠不會出現）</li>
-      <li>按上面的按鈕，在彈出的視窗選擇 <code>USB JTAG/serial debug unit</code>（或名稱類似的 COM port）</li>
-      <li>燒完按一次 RESET；<strong>首次安裝</strong>：LED 亮後 10 秒內再按一次 RESET → 開設定頁</li>
-    </ol>
-  </section>
-
-  <section class="warn">
-    <h2>⚠ 清除與設定 / Erase &amp; settings</h2>
-    <ul>
-      <li>安裝時會詢問是否<strong>清除整顆 flash</strong>。清除後 WiFi / MQTT 設定會消失，要重新設定。</li>
-      <li>只想換韌體、保留設定：不要勾選清除，或改用離線工具的 <code>update</code> 模式。</li>
-      <li>只支援 <strong>XIAO ESP32C6</strong>，燒在其他晶片會失敗；且要裝在上面說明的 EnviroSense 載板上才有用。</li>
-    </ul>
-  </section>
-
-  <section>
-    <h2>關於 / About</h2>
-    <p class="meta">
-      作者 <a href="https://github.com/HoDZadkiel">HoDZadkiel</a> ·
-      專案 <a href="https://github.com/HoDZadkiel/EnviroSense">github.com/HoDZadkiel/EnviroSense</a> ·
-      版本 __VERSION__ · 韌體不含任何 WiFi / MQTT 登入資料，設定在燒錄後由設定頁填寫。<br>
-      燒錄全程在你的電腦上經 USB 進行，網頁只提供韌體檔。
-      使用 <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a>（Apache-2.0）。
-    </p>
-  </section>
-</main>
-
-<script type="module" src="https://unpkg.com/esp-web-tools@10.2.1/dist/web/install-button.js?module"></script>
+    customElements.whenDefined('esp-web-install-button').then(() => {
+      toolsReady = true;
+      installButton.disabled = false;
+      restoreStatus();
+    });
+    document.getElementById('esp-tools').addEventListener('error', () => {
+      document.querySelector('esp-web-install-button').hidden = true;
+      document.getElementById('load-error').hidden = false;
+      setStatus('燒錄工具載入失敗', 'warning');
+    });
+  </script>
 </body>
 </html>
